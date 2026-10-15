@@ -2,8 +2,8 @@ name: Track World Series ticket prices
 
 on:
   schedule:
-    - cron: "*/30 * * * *"   # every 30 min (GitHub may delay runs a few minutes)
-  workflow_dispatch:          # lets you run it manually from the Actions tab
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -35,7 +35,6 @@ jobs:
         run: python tracker.py
 
       - name: Save price history
-              - name: Save price history
         run: |
           git config user.name "price-bot"
           git config user.email "price-bot@users.noreply.github.com"
