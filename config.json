@@ -1,0 +1,18 @@
+{
+  "alert_below": { "Game 1": 600, "Game 2": 500 },
+  "drop_pct": 10,
+  "events": {
+    "Game 1": {
+      "seatgeek_id": null,
+      "stubhub": "PASTE_STUBHUB_GAME_1_URL",
+      "vividseats": "PASTE_VIVIDSEATS_GAME_1_URL",
+      "gametime": "PASTE_GAMETIME_GAME_1_URL"
+    },
+    "Game 2": {
+      "seatgeek_id": null,
+      "stubhub": "PASTE_STUBHUB_GAME_2_URL",
+      "vividseats": "PASTE_VIVIDSEATS_GAME_2_URL",
+      "gametime": "PASTE_GAMETIME_GAME_2_URL"
+    }
+  }
+}
