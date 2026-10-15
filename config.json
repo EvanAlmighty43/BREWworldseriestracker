@@ -4,15 +4,15 @@
   "events": {
     "Game 1": {
       "seatgeek_id": null,
-      "stubhub": "PASTE_STUBHUB_GAME_1_URL",
-      "vividseats": "PASTE_VIVIDSEATS_GAME_1_URL",
-      "gametime": "PASTE_GAMETIME_GAME_1_URL"
+      "stubhub": "http://stubhub.com/milwaukee-brewers-milwaukee-tickets-10-23-2026/event/161543156/?quantity=3",
+      "vividseats": "https://www.vividseats.com/milwaukee-brewers-tickets-american-family-field-10-26-2026--sports-mlb-baseball/production/7299683?quantity=3",
+      "gametime": "https://gametime.co/mlb-baseball/tbd-at-brewers-world-series-g1-hg1-if-necessary-tickets/10-23-2026-milwaukee-wi-american-family-field/events/6a59604fcffcd4b5cab56925?_gl=1*19zvoc8*_up*MQ..*_gs*MQ..&gbraid=0AAAAADlrrd1TU7wcV-11XgegXs8_uLsSS&gclid=CjwKCAjw88HWBhA3EiwAo2Zd6HQHqGzsM3Ccj6fBmlZTyPY1ijVv6uRF4w8Z9RfDW99zSP-pQ9P_IBoCiWsQAvD_BwE&gclsrc=aw.ds&quantity=2"
     },
     "Game 2": {
       "seatgeek_id": null,
-      "stubhub": "PASTE_STUBHUB_GAME_2_URL",
-      "vividseats": "PASTE_VIVIDSEATS_GAME_2_URL",
-      "gametime": "PASTE_GAMETIME_GAME_2_URL"
+      "stubhub": "https://www.stubhub.com/milwaukee-brewers-milwaukee-tickets-10-24-2026/event/161543157/?quantity=3",
+      "vividseats": "https://www.vividseats.com/milwaukee-brewers-tickets-american-family-field-10-30-2026--sports-mlb-baseball/production/7299685?quantity=3",
+      "gametime": "https://gametime.co/mlb-baseball/tbd-at-brewers-world-series-g2-hg2-if-necessary-tickets/10-24-2026-milwaukee-wi-american-family-field/events/6a596052d2eefd87bd3d7e60?_gl=1*19zvoc8*_up*MQ..*_gs*MQ..&gbraid=0AAAAADlrrd1TU7wcV-11XgegXs8_uLsSS&gclid=CjwKCAjw88HWBhA3EiwAo2Zd6HQHqGzsM3Ccj6fBmlZTyPY1ijVv6uRF4w8Z9RfDW99zSP-pQ9P_IBoCiWsQAvD_BwE&gclsrc=aw.ds&quantity=2"
     }
   }
 }
