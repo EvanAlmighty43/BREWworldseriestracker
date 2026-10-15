@@ -1,8 +1,10 @@
-"""World Series ticket price tracker.
+"""World Series ticket price tracker (standing-room-only filtered).
 
-Checks SeatGeek (official API) plus StubHub, Vivid Seats and Gametime
-(public event pages loaded in a headless browser), appends results to
-prices.csv, and sends a Discord alert on low prices or sharp drops.
+Checks SeatGeek (official API, optional) plus StubHub, Vivid Seats and
+Gametime (public event pages loaded in a headless browser). For the browser
+sites it reads the individual listings the page loads, drops any that look
+like standing room only, and records the cheapest remaining price. Results go
+to prices.csv, with Discord alerts on low prices or sharp drops.
 """
 import csv
 import datetime as dt
@@ -22,10 +24,61 @@ USER_AGENT = (
     "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 )
 
+# Listings whose own data mentions any of these are treated as standing room.
+SRO_RE = re.compile(r"standing\s*room|\bSRO\b|\bstanding\b", re.I)
+PRICE_KEYS = {"price", "listingprice", "currentprice", "rawprice",
+              "priceperticket", "displayprice"}
+MIN_LISTINGS = 3  # need at least this many listings to trust the result
 
-# ---------- price extraction ----------
+
+# ---------- listing-level extraction ----------
+def _strings(node, depth=0):
+    """Yield every string inside a JSON node (a few levels deep)."""
+    if depth > 4:
+        return
+    if isinstance(node, str):
+        yield node
+    elif isinstance(node, dict):
+        for v in node.values():
+            yield from _strings(v, depth + 1)
+    elif isinstance(node, list):
+        for v in node:
+            yield from _strings(v, depth + 1)
+
+
+def _num(v):
+    if isinstance(v, dict):
+        v = v.get("amount") or v.get("value") or v.get("raw")
+    if isinstance(v, str):
+        v = re.sub(r"[^0-9.]", "", v)
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def collect_listings(node, prices, skipped):
+    """Find listing-like dicts (they carry a price) and sort them into
+    normal listings (prices) and standing-room ones (skipped count)."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if k.lower() in PRICE_KEYS:
+                p = _num(v)
+                if p and 1 <= p <= 100000:
+                    if any(SRO_RE.search(s) for s in _strings(node)):
+                        skipped.append(p)
+                    else:
+                        prices.append(p)
+                break
+        for v in node.values():
+            collect_listings(v, prices, skipped)
+    elif isinstance(node, list):
+        for v in node:
+            collect_listings(v, prices, skipped)
+
+
+# ---------- aggregate fallback (cannot exclude standing room) ----------
 def _walk(node):
-    """Yield every 'lowPrice' value found anywhere in parsed JSON."""
     if isinstance(node, dict):
         if "lowPrice" in node:
             yield node["lowPrice"]
@@ -37,7 +90,6 @@ def _walk(node):
 
 
 def price_from_html(html):
-    """Pull the lowest advertised price from JSON-LD blocks on the page."""
     prices = []
     pattern = r'<script[^>]*application/ld\+json[^>]*>(.*?)</script>'
     for m in re.finditer(pattern, html, re.S):
@@ -55,6 +107,8 @@ def price_from_html(html):
 
 # ---------- data sources ----------
 def seatgeek_price(event_id):
+    """SeatGeek's API only gives an all-listings minimum, which can include
+    standing room. Leave seatgeek_id as null in config.json to skip it."""
     client_id = os.environ.get("SEATGEEK_CLIENT_ID")
     if not (event_id and client_id):
         return None
@@ -68,87 +122,38 @@ def seatgeek_price(event_id):
 
 
 def browser_prices(urls):
-    """Load each URL in headless Chromium and extract the lowest price."""
     results = {}
     if not urls:
         return results
     from playwright.sync_api import sync_playwright
 
+    allow_fallback = CONFIG.get("fallback_unfiltered", False)
     with sync_playwright() as p:
         browser = p.chromium.launch()
         ctx = browser.new_context(user_agent=USER_AGENT, locale="en-US")
-        page = ctx.new_page()
         for key, url in urls.items():
+            page = ctx.new_page()
+            json_responses = []
+            page.on("response", lambda r, bucket=json_responses:
+                    bucket.append(r)
+                    if "json" in (r.headers.get("content-type") or "") else None)
             try:
                 page.goto(url, wait_until="domcontentloaded", timeout=45000)
-                page.wait_for_timeout(4000)
-                results[key] = price_from_html(page.content())
-                if results[key] is None:
-                    print(f"WARN {key}: page loaded but no price found "
-                          "(blocked or layout changed?)")
-            except Exception as e:  # noqa: BLE001
-                print(f"WARN {key}: {e}")
-                results[key] = None
-        browser.close()
-    return results
+                page.wait_for_timeout(6000)
 
+                prices, skipped = [], []
+                for resp in json_responses:
+                    try:
+                        collect_listings(resp.json(), prices, skipped)
+                    except Exception:  # noqa: BLE001
+                        pass
 
-# ---------- history + alerts ----------
-def last_prices():
-    """Most recent stored price per (game, site)."""
-    last = {}
-    if HISTORY.exists():
-        with HISTORY.open() as f:
-            for row in csv.DictReader(f):
-                if row["lowest"]:
-                    last[(row["game"], row["site"])] = float(row["lowest"])
-    return last
-
-
-def alert(message):
-    print("ALERT:", message)
-    hook = os.environ.get("DISCORD_WEBHOOK")
-    if hook:
-        requests.post(hook, json={"content": message}, timeout=15)
-
-
-def main():
-    previous = last_prices()
-    now = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
-    readings = []  # (game, site, price)
-
-    browser_targets = {}
-    for game, cfg in CONFIG["events"].items():
-        try:
-            readings.append((game, "seatgeek", seatgeek_price(cfg.get("seatgeek_id"))))
-        except Exception as e:  # noqa: BLE001
-            print(f"WARN seatgeek {game}: {e}")
-        for site in SITES:
-            if cfg.get(site):
-                browser_targets[(game, site)] = cfg[site]
-
-    for (game, site), price in browser_prices(browser_targets).items():
-        readings.append((game, site, price))
-
-    new_file = not HISTORY.exists()
-    with HISTORY.open("a", newline="") as f:
-        w = csv.writer(f)
-        if new_file:
-            w.writerow(FIELDS)
-        for game, site, price in readings:
-            w.writerow([now, game, site, "" if price is None else price])
-
-    drop_pct = CONFIG.get("drop_pct", 10)
-    for game, site, price in readings:
-        if price is None:
-            continue
-        limit = CONFIG["alert_below"].get(game)
-        if limit and price < limit:
-            alert(f"{game} on {site}: lowest is ${price:,.0f} (under your ${limit} target)")
-        prev = previous.get((game, site))
-        if prev and price <= prev * (1 - drop_pct / 100):
-            alert(f"{game} on {site}: dropped from ${prev:,.0f} to ${price:,.0f}")
-
-
-if __name__ == "__main__":
-    main()
+                if len(prices) >= MIN_LISTINGS:
+                    results[key] = min(prices)
+                    print(f"{key}: {len(prices)} listings, "
+                          f"{len(skipped)} standing-room skipped, "
+                          f"lowest ${results[key]:,.0f}")
+                elif allow_fallback:
+                    results[key] = price_from_html(page.content())
+                    print(f"WARN {key}: could not read individual listings; "
+                          f"used page-wide price (may include standing
