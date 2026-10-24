@@ -415,3 +415,11 @@ timestamp,game,site,lowest
 2026-10-24T11:50:38+00:00,Game 2,stubhub,
 2026-10-24T11:50:38+00:00,Game 2,vividseats,
 2026-10-24T11:50:38+00:00,Game 2,gametime,
+2026-10-24T15:22:01+00:00,Game 1,seatgeek,
+2026-10-24T15:22:01+00:00,Game 2,seatgeek,
+2026-10-24T15:22:01+00:00,Game 1,stubhub,
+2026-10-24T15:22:01+00:00,Game 1,vividseats,
+2026-10-24T15:22:01+00:00,Game 1,gametime,
+2026-10-24T15:22:01+00:00,Game 2,stubhub,
+2026-10-24T15:22:01+00:00,Game 2,vividseats,3440.0
+2026-10-24T15:22:01+00:00,Game 2,gametime,
